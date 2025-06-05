@@ -2,13 +2,13 @@ package com.bkr.shopen.error;
 
 import java.time.LocalDateTime;
 
-public class ExcemptionErrResponse {
+public class ExceptionErrResponse {
     private final String message;
     private final int status;
     private final String path;
     private final LocalDateTime timestamp;
 
-    public ExcemptionErrResponse(String message, int status, String path, LocalDateTime timestamp) {
+    public ExceptionErrResponse(String message, int status, String path, LocalDateTime timestamp) {
         this.message = message;
         this.status = status;
         this.path = path;

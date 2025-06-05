@@ -1,4 +1,4 @@
-package com.bkr.shopen.services;
+package com.bkr.shopen.services.payment;
 
 import org.springframework.stereotype.Service;
 

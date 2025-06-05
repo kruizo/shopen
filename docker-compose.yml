@@ -1,0 +1,21 @@
+services:
+  shopendb:
+    container_name: shopendb
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: shopen
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: shopendb
+      PGDATA: /data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - shopen_network
+    restart: unless-stopped
+
+networks:
+  shopen_network:
+    driver: bridge
+
+volumes:
+  shopendb_data:

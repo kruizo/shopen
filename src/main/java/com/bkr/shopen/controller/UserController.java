@@ -1,26 +1,56 @@
 package com.bkr.shopen.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.bkr.shopen.model.User;
-import java.util.List;
+import com.bkr.shopen.services.UserService;
 
-@RestController
+import jakarta.validation.Valid;
+
+import java.util.List;
+import java.util.Map;
+
 @RequestMapping("/api/v1/users")
+@RestController
 public class UserController {
 
-    @RequestMapping("/")
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @GetMapping("/test")
     public String index() {
         return "User API is working!";
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
-        return List.of(
-                new User("John Doe", "john.doe@example.com", "password123", "123 Main St", "555-1234"),
-                new User("Jane Smith", "jane.smith@example.com", "securePass", "456 Oak Ave", "555-5678"),
-                new User("Alice Johnson", "alice.johnson@example.com", "alicePwd", "789 Pine Rd", "555-9012")
-        );
+    public List<User> getUsers() {
+        return userService.getAllUsers();
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable Integer id) {
+        User user = userService.getUserById(id);
+        
+        return ResponseEntity.ok(user);
+
+    }
+
+    @PostMapping("")
+    public ResponseEntity<Map<String, String>> addNewUser(@Valid @RequestBody User user) {
+        
+       userService.saveUser(user); 
+
+       return new ResponseEntity<>(Map.of("message", "User created successfully"), HttpStatus.CREATED);
+    }
+    
 }

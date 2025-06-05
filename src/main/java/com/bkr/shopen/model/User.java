@@ -1,11 +1,15 @@
 package com.bkr.shopen.model;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -22,20 +26,20 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-
 @Entity
 @Table(name = "users")
 @Getter @Setter @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class User {
+public class User implements UserDetails{
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     
-    @NotBlank(message = "Name cannot be blank")
-    @Column(nullable = false)
-    private String name;
+
+    @NotBlank(message = "Username cannot be blank")
+    @Column(nullable = false, unique = true)
+    private String username;
 
     @NotBlank(message = "Email cannot be blank")
     @Email(message = "Email should be valid") 
@@ -47,8 +51,8 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private String address;
-    private String phoneNumber;
+    @Column(name = "verification_expiration")
+    private Instant verificationExpiration;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreatedDate
@@ -57,13 +61,12 @@ public class User {
     @Column(name = "updated_at")
     @LastModifiedDate
     private Instant updatedAt;
+    
 
-    public User(String phoneNumber, String address, String password, String email, String name) {
-        this.phoneNumber = phoneNumber;
-        this.address = address;
+    public User(String name, String email, String username, String password) {
+        this.username = username;
         this.password = password;
         this.email = email;
-        this.name = name;
     }
 
     @Override
@@ -71,16 +74,17 @@ public class User {
         if (o == null || getClass() != o.getClass()) return false;
         User user = (User) o;
         return Objects.equals(email, user.email) &&
-               Objects.equals(name, user.name) &&
-               Objects.equals(password, user.password) &&
-               Objects.equals(address, user.address) &&
-               Objects.equals(phoneNumber, user.phoneNumber);
+               Objects.equals(username, user.username) &&
+               Objects.equals(password, user.password);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, email, password, address, phoneNumber);
+        return Objects.hash(username, email, password);
     }
 
-
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities(){
+        return List.of();
+    }
 }

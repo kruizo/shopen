@@ -10,8 +10,8 @@ public class HomeController {
     @Value("${spring.application.name}")
     private String  AppName;
     @RequestMapping("/")
-    public <string> string index() {
+    public <string> String index() {
         System.out.println("Welcome to " + AppName);
-        return (string) "index.html";
+        return "index.html";
     }
 }

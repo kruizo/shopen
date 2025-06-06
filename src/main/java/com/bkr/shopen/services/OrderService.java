@@ -2,6 +2,8 @@ package com.bkr.shopen.services;
 
 import org.springframework.stereotype.Service;
 
+import com.bkr.shopen.services.payment.PaymentService;
+
 @Service
 public class OrderService {
     private PaymentService paymentService;

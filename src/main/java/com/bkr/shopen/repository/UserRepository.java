@@ -10,5 +10,6 @@ import com.bkr.shopen.model.User;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long>{
     Optional<User> findByEmail(String email);
-    Optional<User> findByVerificationCOde(String verificationCode);
+    Optional<User> findByVerificationCode(String verificationCode);
+
 }

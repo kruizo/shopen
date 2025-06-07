@@ -1,6 +1,7 @@
 package com.bkr.shopen.model;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -20,8 +21,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -35,26 +34,32 @@ public class User implements UserDetails{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-    
 
-    @NotBlank(message = "Username cannot be blank")
     @Column(nullable = false, unique = true)
     private String username;
 
-    @NotBlank(message = "Email cannot be blank")
-    @Email(message = "Email should be valid") 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true, unique = true)
     private String email;
 
-    @NotBlank(message = "Password cannot be blank")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
     private String password;
 
-    private String verificationCode; 
+    @Column(name = "verification_code")
+    private String verificationCode;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Column(name = "is_verified")
+    private boolean isVerified = false;
+
+    @Column(name = "role", nullable = false)
+    private String role = "USER";
+
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
 
     @Column(name = "verification_expiration")
-    private Instant verificationExpiration;
+    private LocalDateTime verificationCodeExpiresAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreatedDate
@@ -63,12 +68,11 @@ public class User implements UserDetails{
     @Column(name = "updated_at")
     @LastModifiedDate
     private Instant updatedAt;
-    
 
-    public User(String name, String email, String username, String password) {
+    public User(String username, String email, String password) {
         this.username = username;
-        this.password = password;
         this.email = email;
+        this.password = password;
     }
 
     @Override
@@ -86,7 +90,12 @@ public class User implements UserDetails{
     }
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities(){
-        return List.of();
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(() -> this.role);  // e.g., "ROLE_ADMIN"
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
     }
 }

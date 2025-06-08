@@ -3,22 +3,22 @@ package com.bkr.shopen.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.bkr.shopen.dto.UserDto;
 import com.bkr.shopen.mapper.UserMapper;
 import com.bkr.shopen.model.User;
+import com.bkr.shopen.model.UserRole;
 import com.bkr.shopen.services.UserService;
+
+import jakarta.persistence.Enumerated;
 
 import java.util.List;
 
 @RequestMapping("/users")
 @RestController
 public class UserController {
-    
+
     private final UserService userService;
 
     /**
@@ -32,34 +32,43 @@ public class UserController {
         this.userService = userService;
     }
 
+    @GetMapping
+    public ResponseEntity<List<UserDto>> getAllUsers() {
+        List<UserDto> users = userService.getAllUsers();
+
+        return ResponseEntity.ok(users);
+    }
+
     @GetMapping("/test")
     public String index() {
         return "User API is working!";
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDto> authenticatedUser() {
+    public ResponseEntity<?> authenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        User currentUser = (User) authentication.getPrincipal();
-        return ResponseEntity.ok(UserMapper.toDto(currentUser));
+        var currentUser = authentication.getPrincipal();
+        return ResponseEntity.ok(currentUser);
     }
 
-    @GetMapping("")
-    public ResponseEntity<List<UserDto>> getAllUsers() {
-        System.out.println("Fetching all users");
-        List<UserDto> users = userService.getAllUsers()
-            .stream()
-            .map(UserMapper::toDto)
-            .toList();
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long userId) {
+        UserDto user = userService.getUserById(userId);
 
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(user);
     }
 
+    @GetMapping("/{userId}/roles")
+    public ResponseEntity<UserRole> getUserRoles(@PathVariable Long userId) {
+        UserRole role = userService.getUserRole(userId);
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        User user = userService.getUserById(id);
-        return ResponseEntity.ok(UserMapper.toDto(user));
+        return ResponseEntity.ok(role);
+    }
+
+    @PutMapping("/{userId}/roles")
+    public ResponseEntity<String> updateUserRoles(@PathVariable Long userId, @RequestBody UserRole role) {
+        userService.updateUserRoles(userId, role);
+        return ResponseEntity.ok("User roles updated successfully");
     }
     
 }

@@ -2,19 +2,24 @@ package com.bkr.shopen.services.auth;
 
 import com.bkr.shopen.dto.LoginUserDto;
 import com.bkr.shopen.dto.RegisterUserDto;
+import com.bkr.shopen.dto.UserDto;
 import com.bkr.shopen.dto.VerifyUserDto;
 import com.bkr.shopen.error.BadRequestExceptionErr;
 import com.bkr.shopen.error.ConflictExceptionErr;
 import com.bkr.shopen.error.InternalServerExceptionErr;
 import com.bkr.shopen.error.ResourceNotFoundExceptionErr;
+import com.bkr.shopen.mapper.UserMapper;
 import com.bkr.shopen.model.User;
 import com.bkr.shopen.repository.UserRepository;
 import jakarta.mail.MessagingException;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,21 +51,30 @@ public class AuthService {
         this.emailService = emailService;
     }
 
+    @Value("${security.jwt.private-key-path}")
+    private Resource privateKeyResource;
+
+    @Value("${security.jwt.public-key-path}")
+    private Resource publicKeyResource;
+
+    @Value("${security.jwt.expiration-time}")
+    private long jwtExpiration;
+
     @Transactional
     public ResponseEntity<String> signup(RegisterUserDto userDto) {
-        User user = new User(userDto.getUsername(), userDto.getEmail(), passwordEncoder.encode(userDto.getPassword()));
-
-        if(user.getPassword() == null || user.getPassword().isBlank()) {
+        if(userDto.getPassword() == null || userDto.getPassword().isBlank()) {
             throw new BadRequestExceptionErr("Password cannot be blank");
         }
 
-        if (userRepository.existsByUsername(user.getUsername())) {
+        if (userRepository.existsByUsername(userDto.getUsername())) {
             throw new BadRequestExceptionErr("User with this username already exists");
         }
 
-        if (userRepository.existsByEmail(user.getEmail())) {
+        if (userRepository.existsByEmail(userDto.getEmail())) {
             throw new BadRequestExceptionErr("User with this email already exists");
         }
+
+        User user = new User(userDto.getUsername(), userDto.getEmail(), passwordEncoder.encode(userDto.getPassword()));
 
         String code = generateVerificationCode();
         String hashed = hashCode(code);
@@ -71,6 +85,7 @@ public class AuthService {
 
         try {
             userRepository.save(user);
+            System.out.println("User verification code Before: " + code);
             return ResponseEntity.ok("User registered successfully. Please check your email for verification code.");
         } catch (DataIntegrityViolationException e) {
             throw new ConflictExceptionErr("User already exists or violates database constraints", e);
@@ -80,14 +95,10 @@ public class AuthService {
     }
 
 
-    public User authenticate(LoginUserDto input) {
+    public UserDto authenticate(LoginUserDto input) {
 
-        User user = findUserByUsernameOrEmail(input.getUsername(), input.getEmail())
-                .orElseThrow(() -> new BadRequestExceptionErr("Invalid credentials. User not found."));
-
-        // if (!user.isEmailVerified()) {
-        //     throw new RuntimeException("Account not verified. Please verify your account.");
-        // }
+        User user = userRepository.findByUsername(input.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("Bad credentials"));
 
         if (!user.isEnabled()) {
             throw new RuntimeException("Account suspended. Please verify your account.");
@@ -100,11 +111,13 @@ public class AuthService {
                 )
         );
 
-        return user;
+        return UserMapper.toDto(user);
     }
 
+
+
     @Transactional
-    public ResponseEntity<String> verifyUser(VerifyUserDto input) {
+    public void verifyUser(VerifyUserDto input) {
         Optional<User> optionalUser = userRepository.findByEmail(input.getEmail());
 
         if(!optionalUser.isPresent()) {
@@ -126,8 +139,7 @@ public class AuthService {
         user.setVerificationCodeExpiresAt(null);
 
         try {
-            userRepository.save(user);
-            return ResponseEntity.ok("Account verified successfully.");
+             userRepository.save(user);
         } catch (DataIntegrityViolationException e) {
             throw new ConflictExceptionErr("User already exists or violates database constraints", e);
         } catch (Exception e) {
@@ -186,10 +198,15 @@ public class AuthService {
         user.setVerificationCode(hashed);
         user.setVerificationCodeExpiresAt(LocalDateTime.now().plusHours(1));
 
-        
         sendVerificationEmail(email, code);
-     
-        userRepository.save(user);
+        
+        try {
+             userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictExceptionErr("Action violates database constraints", e);
+        } catch (Exception e) {
+            throw new InternalServerExceptionErr("Unexpected error saving user", e);
+        }
     }
 
     private String generateVerificationCode() {
@@ -202,14 +219,13 @@ public class AuthService {
         if (user.getVerificationCode() == null || user.getVerificationCode().isBlank()) {
             throw new BadRequestExceptionErr("User verification code is not set");
         }
+
         if (user.getVerificationCodeExpiresAt() == null || user.getVerificationCodeExpiresAt().isBefore(LocalDateTime.now())) {
             throw new BadRequestExceptionErr("Verification code has expired");
         }   
 
         String hashedInputCode = hashCode(inputCode);
 
-        System.out.println("User verification code: " + user.getVerificationCode());
-        System.out.println("Input verification code: " + inputCode);
         return user.getVerificationCode().equals(hashedInputCode);
 
     }

@@ -1,12 +1,16 @@
 package com.bkr.shopen.controller;
+import com.bkr.shopen.dto.UserDto;
+import com.bkr.shopen.services.UserService;
 import com.bkr.shopen.services.auth.AuthService;
 import com.bkr.shopen.services.auth.JwtService;
 
 import jakarta.validation.Valid;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,8 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import com.bkr.shopen.dto.LoginUserDto;
 import com.bkr.shopen.dto.RegisterUserDto;
 import com.bkr.shopen.dto.VerifyUserDto;
-import com.bkr.shopen.model.User;
-import com.bkr.shopen.response.LoginResponse;
 
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -26,17 +28,21 @@ public class AuthenticationController {
 
     private final AuthService authService;
     private final JwtService jwtService;
+    private final UserService  userService;
     
     /**
      * Constructor for RegistrationController.
      *
-     * @param RegistrationService the service for user registration
+     * @param authService the service for authentication operations
      * @param jwtService the service for JWT token generation
      */
 
-    public AuthenticationController(AuthService authService, JwtService jwtService) {
+
+
+    public AuthenticationController(AuthService authService, JwtService jwtService, UserService userService) {
         this.authService = authService;
         this.jwtService = jwtService;
+        this.userService = userService;
     }
 
     @GetMapping("/user")
@@ -45,19 +51,24 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> authenticate(@Valid @RequestBody LoginUserDto loginUserDto){
-        User authenticatedUser = authService.authenticate(loginUserDto);
-        String jwtToken = jwtService.generateToken(authenticatedUser);
-        LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
+    public ResponseEntity<Map<String, Object>> authenticate(@Valid @RequestBody LoginUserDto loginUserDto){
+        UserDto authenticatedUser = authService.authenticate(loginUserDto);
 
-        return ResponseEntity.ok(loginResponse);
+        UserDetails userDetails = userService.loadUserByUsername(authenticatedUser.getUsername());
+        String jwtToken = jwtService.generateToken(userDetails);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("token", jwtToken);
+
+        return ResponseEntity.ok().body(res);
     }
 
     @PostMapping("/register")
     public ResponseEntity<String> authenticate(@Valid @RequestBody RegisterUserDto registerUserDto){
         System.out.println("Registering user DTO: " + registerUserDto.getEmail());
 
-       return ResponseEntity.ok("User registered successfully.");
+        authService.signup(registerUserDto);
+        return ResponseEntity.ok("User registered successfully. Please check your email for verification instructions.");
     }
 
     @PostMapping("/verify")

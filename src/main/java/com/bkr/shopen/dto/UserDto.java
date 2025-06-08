@@ -12,10 +12,9 @@ public class UserDto {
     private final Integer id;
     private final String username;
     private final String email;
+    private String role;
     private final boolean isVerified;
     private final boolean enabled;
     private final Instant createdAt;
     private final Instant updatedAt;
-  
-
 }

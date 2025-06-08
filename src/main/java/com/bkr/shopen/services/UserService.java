@@ -3,12 +3,20 @@ package com.bkr.shopen.services;
 import java.util.List;
 import java.util.Optional;
 
+import com.bkr.shopen.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
+import com.bkr.shopen.dto.UserDto;
+import com.bkr.shopen.error.ConflictExceptionErr;
+import com.bkr.shopen.error.InternalServerExceptionErr;
 import com.bkr.shopen.error.ResourceNotFoundExceptionErr;
 import com.bkr.shopen.model.User;
+import com.bkr.shopen.model.UserRole;
 import com.bkr.shopen.repository.UserRepository;
 
+import jakarta.transaction.Transactional;
+
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -27,60 +35,66 @@ public class UserService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
-    }
+    public List<UserDto> getAllUsers() {
+        List<UserDto> usersDto = userRepository.findAll()
+            .stream()
+            .map(UserMapper::toDto)
+            .toList();
 
-    public User getUserById(Long id) {
-        if(id == null) {
-            throw new IllegalArgumentException("User ID cannot be null");
-        }
-        if(id <= 0) {
-            throw new IllegalArgumentException("User ID must be a positive number");
-        }
+        return usersDto;
 
-        if (!(id instanceof Long)) {
-            throw new IllegalArgumentException("User ID must be of type Long");
-        }
-
-        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundExceptionErr("User not found with id: " + id));
-    }
-
- 
-    public User findOrCreateUser(User user) {
-        return userRepository.findByEmail(user.getEmail())
-            .orElseGet(() -> userRepository.save(user));
-    }
-
-    public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
-    }
-
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> user = userRepository.findByUsername(username);
-        
-        if(!user.isPresent()) throw new UsernameNotFoundException("User not found with username: " + username);
-
-        final User userDetails = user.get();
-
-        return org.springframework.security.core.userdetails.User.builder()
-            .username(userDetails.getUsername())
-            .password(userDetails.getPassword())    
-            .roles(getRoles(user))
-            .build();
-        
-    }
-
-    private String[] getRoles(Optional<User> user) {
-        if (!user.isPresent() || user.get().getRole() == null || user.get().getRole().isBlank()) {
-            return new String[] {"USER"}; 
+        if (username == null || username.isEmpty()) {
+            throw new IllegalArgumentException("Username cannot be null or empty");
         }
 
-        return user.get().getRole().split(","); 
+        Optional<User> user = userRepository.findByUsername(username);
+
+        final User userDetails = user.orElseThrow(() -> new UsernameNotFoundException("User not found."));
+
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(userDetails.getUsername())
+                .password(userDetails.getPassword())
+                .roles(getRoles(userDetails))
+                .build();
+    }
+
+    public UserDto getUserById(Long userId) {
+        return UserMapper.toDto(getUserOrThrow(userId));
+    }
+
+
+    public UserRole getUserRole(Long userId) {
+        return getUserOrThrow(userId).getRole();
+    }
+
+    @Transactional
+    public void updateUserRoles(Long userId, UserRole role) {
+        User user = getUserOrThrow(userId);
+        user.setRole(role);
+
+        try {
+            userRepository.save(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictExceptionErr("Role update conflict: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new InternalServerExceptionErr("Unexpected error updating user role", e);
+        } 
+    }
+
+    private String[] getRoles(User user) {
+    // Remove the "ROLE_" prefix here
+        return new String[] { user.getRole().name() };
+    }
+
+    private User getUserOrThrow(Long userId) {
+        if (userId == null) throw new IllegalArgumentException("User ID cannot be null");
+        if (userId <= 0) throw new IllegalArgumentException("User ID must be a positive number");
+
+        return userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundExceptionErr("User not found with ID: " + userId));
     }
 }

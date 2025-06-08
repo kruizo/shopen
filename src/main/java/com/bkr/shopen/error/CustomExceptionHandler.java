@@ -14,9 +14,10 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+
 @ControllerAdvice
 public class CustomExceptionHandler {
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErr(MethodArgumentNotValidException ex) {
         Map<String, Object> errors = new HashMap<>();
@@ -28,14 +29,36 @@ public class CustomExceptionHandler {
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ExceptionErrResponse> handleGlobalException(Exception error, WebRequest request) {
+        error.printStackTrace();
+        ExceptionErrResponse response = new ExceptionErrResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "An unexpected error occurred: " + error.getMessage(),
+                request.getDescription(false)
+        );
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<ExceptionErrResponse> handleNoHandlerFoundError(NoHandlerFoundException error, WebRequest request) {
+    public ResponseEntity<ExceptionErrResponse> handleNoHandlerFoundError(NoHandlerFoundException ex, WebRequest request) {
         ExceptionErrResponse response = new ExceptionErrResponse(
             HttpStatus.NOT_FOUND.value(),
-            "The resource you are looking for was not found.",
+            ex.getMessage(),
             request.getDescription(false)
         );
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+    
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ExceptionErrResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, WebRequest request) {
+        String message = "Invalid request body: " + ex.getMostSpecificCause().getMessage();
+        ExceptionErrResponse response = new ExceptionErrResponse(
+            HttpStatus.BAD_REQUEST.value(),
+            message,
+            request.getDescription(false)
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
     
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -47,35 +70,23 @@ public class CustomExceptionHandler {
         );
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
-
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ExceptionErrResponse> handleGlobalException(Exception error, WebRequest request) {
-        ExceptionErrResponse response = new ExceptionErrResponse(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            "An unexpected error occurred: " + error.getMessage(),
-            request.getDescription(false)
-        );
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<?> handleAccessDenied(Exception ex) {
+    public ResponseEntity<?> handleAccessDenied(Exception ex, WebRequest request) {
         ExceptionErrResponse response = new ExceptionErrResponse(
             HttpStatus.FORBIDDEN.value(),
             "Access denied: You do not have permission to access this resource.",
-            ex.getMessage()
+            request.getDescription(false)
         );
 
         return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<?> handleAuthentication(Exception ex) {
+    public ResponseEntity<?> handleAuthentication(Exception ex, WebRequest request) {
         ExceptionErrResponse response = new ExceptionErrResponse(
             HttpStatus.UNAUTHORIZED.value(),
-            "Authentication required.",
-            ex.getMessage()
+                "Bad credentials.",
+            request.getDescription(false)
         );
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }

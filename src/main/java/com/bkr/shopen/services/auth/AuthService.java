@@ -46,6 +46,7 @@ public class AuthService {
         this.emailService = emailService;
     }
 
+    @Transactional
     public ResponseEntity<String> signup(RegisterUserDto userDto) {
         User user = new User(userDto.getUsername(), userDto.getEmail(), passwordEncoder.encode(userDto.getPassword()));
 
@@ -61,12 +62,12 @@ public class AuthService {
             throw new BadRequestExceptionErr("User with this email already exists");
         }
 
-            String code = generateVerificationCode();
-            String hashed = hashCode(code);
+        String code = generateVerificationCode();
+        String hashed = hashCode(code);
 
-            user.setVerificationCode(hashed); 
-            user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
-            sendVerificationEmail(user.getEmail(), code); 
+        user.setVerificationCode(hashed); 
+        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
+        sendVerificationEmail(user.getEmail(), code); 
 
         try {
             userRepository.save(user);
@@ -77,6 +78,7 @@ public class AuthService {
             throw new InternalServerExceptionErr("Unexpected error saving user", e);
         }
     }
+
 
     public User authenticate(LoginUserDto input) {
 
@@ -160,6 +162,7 @@ public class AuthService {
         }
     }
 
+    @Transactional
     public void resendVerificationCode(String email) {
         Optional<User> optionalUser = userRepository.findByEmail(email);
 

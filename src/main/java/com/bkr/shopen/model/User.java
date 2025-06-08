@@ -53,7 +53,7 @@ public class User implements UserDetails{
     private boolean isVerified = false;
 
     @Column(name = "role", nullable = false)
-    private String role = "USER";
+    private String role = "BUYER";
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled = true;
@@ -91,7 +91,7 @@ public class User implements UserDetails{
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(() -> this.role);  // e.g., "ROLE_ADMIN"
+        return List.of(() -> "ROLE_" + this.role);  // e.g., "ROLE_ADMIN"
     }
 
     @Override

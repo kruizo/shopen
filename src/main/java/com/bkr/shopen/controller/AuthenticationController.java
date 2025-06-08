@@ -2,6 +2,10 @@ package com.bkr.shopen.controller;
 import com.bkr.shopen.services.auth.AuthService;
 import com.bkr.shopen.services.auth.JwtService;
 
+import jakarta.validation.Valid;
+
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.bkr.shopen.error.BadRequestExceptionErr;
 import com.bkr.shopen.dto.LoginUserDto;
 import com.bkr.shopen.dto.RegisterUserDto;
 import com.bkr.shopen.dto.VerifyUserDto;
@@ -42,7 +47,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> authenticate(@RequestBody LoginUserDto loginUserDto){
+    public ResponseEntity<LoginResponse> authenticate(@Valid @RequestBody LoginUserDto loginUserDto){
         User authenticatedUser = authService.authenticate(loginUserDto);
         String jwtToken = jwtService.generateToken(authenticatedUser);
         LoginResponse loginResponse = new LoginResponse(jwtToken, jwtService.getExpirationTime());
@@ -51,29 +56,26 @@ public class AuthenticationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<User> authenticate(@RequestBody RegisterUserDto registerUserDto){
+    public ResponseEntity<String> authenticate(@Valid @RequestBody RegisterUserDto registerUserDto){
         System.out.println("Registering user DTO: " + registerUserDto.getEmail());
 
-        User registeredUser = authService.signup(registerUserDto);
-        
-       return ResponseEntity.ok(registeredUser);
+       return ResponseEntity.ok("User registered successfully.");
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyUser(@RequestBody VerifyUserDto verifyUserDto) {
+    public ResponseEntity<?> verifyUser(@Valid @RequestBody VerifyUserDto verifyUserDto) {
         authService.verifyUser(verifyUserDto);
         return ResponseEntity.ok("Account verified successfully");
         
     }
 
     @PostMapping("/resend")
-    public ResponseEntity<?> resendVerificationCode(@RequestParam String email) {
-        try {
-            authService.resendVerificationCode(email);
-            return ResponseEntity.ok("Verification code sent");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<String> resendVerificationCode(@RequestBody Map<String, String> body) {
+        System.out.println("Resending verification code to email: " + body.get("email"));
+        final String email = body.get("email"); 
+
+        authService.resendVerificationCode(email);
+        return ResponseEntity.ok("Verification code sent");
     }
 
 }

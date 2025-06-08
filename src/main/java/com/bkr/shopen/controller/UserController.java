@@ -45,14 +45,14 @@ public class UserController {
     }
 
     @GetMapping("")
-    public ResponseEntity<List<UserDto>> getAllUsers() {
+    public ResponseEntity<List<User>> getAllUsers() {
         System.out.println("Fetching all users");
         List<UserDto> users = userService.getAllUsers()
             .stream()
             .map(UserMapper::toDto)
             .toList();
 
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
 

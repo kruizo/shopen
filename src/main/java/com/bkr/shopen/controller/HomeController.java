@@ -2,7 +2,8 @@ package com.bkr.shopen.controller;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,10 +27,12 @@ public class HomeController {
     }
     @GetMapping("/user")
     public ResponseEntity<String>  userPage() {
-        org.springframework.security.core.Authentication authentication =
-            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() ||
-            authentication.getPrincipal().equals("anonymousUser")) {
+        System.out.println("User page accessed");
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("Authorities: " + auth.getAuthorities());
+
+        if (auth == null || !auth.isAuthenticated() ||
+            auth.getPrincipal().equals("anonymousUser")) {
             throw new PermissionDeniedExceptionErr("Access denied: User is not authenticated");
         }
 

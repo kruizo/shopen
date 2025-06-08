@@ -4,17 +4,20 @@ import com.bkr.shopen.dto.LoginUserDto;
 import com.bkr.shopen.dto.RegisterUserDto;
 import com.bkr.shopen.dto.VerifyUserDto;
 import com.bkr.shopen.error.BadRequestExceptionErr;
+import com.bkr.shopen.error.ConflictExceptionErr;
+import com.bkr.shopen.error.InternalServerExceptionErr;
 import com.bkr.shopen.error.ResourceNotFoundExceptionErr;
 import com.bkr.shopen.model.User;
 import com.bkr.shopen.repository.UserRepository;
 import jakarta.mail.MessagingException;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -43,51 +46,54 @@ public class AuthService {
         this.emailService = emailService;
     }
 
-    public User signup(RegisterUserDto userDto) {
+    public ResponseEntity<String> signup(RegisterUserDto userDto) {
         User user = new User(userDto.getUsername(), userDto.getEmail(), passwordEncoder.encode(userDto.getPassword()));
 
         if(user.getPassword() == null || user.getPassword().isBlank()) {
-            throw new IllegalArgumentException("Password cannot be blank");
+            throw new BadRequestExceptionErr("Password cannot be blank");
         }
 
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new IllegalArgumentException("User with this username already exists");
+            throw new BadRequestExceptionErr("User with this username already exists");
         }
 
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("User with this email already exists");
+            throw new BadRequestExceptionErr("User with this email already exists");
         }
 
-         try {
             String code = generateVerificationCode();
             String hashed = hashCode(code);
 
             user.setVerificationCode(hashed); 
             user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(15));
-            userRepository.save(user);
-
             sendVerificationEmail(user.getEmail(), code); 
-            
-            return userRepository.save(user);
+
+        try {
+            userRepository.save(user);
+            return ResponseEntity.ok("User registered successfully. Please check your email for verification code.");
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictExceptionErr("User already exists or violates database constraints", e);
         } catch (Exception e) {
-            throw new RuntimeException("Error saving user: " + e.getMessage(), e);
+            throw new InternalServerExceptionErr("Unexpected error saving user", e);
         }
     }
 
     public User authenticate(LoginUserDto input) {
-        User user = userRepository.findByEmail(input.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundExceptionErr("User not found"));
+
+        User user = findUserByUsernameOrEmail(input.getUsername(), input.getEmail())
+                .orElseThrow(() -> new BadRequestExceptionErr("Invalid credentials. User not found."));
 
         // if (!user.isEmailVerified()) {
         //     throw new RuntimeException("Account not verified. Please verify your account.");
         // }
+
         if (!user.isEnabled()) {
             throw new RuntimeException("Account suspended. Please verify your account.");
         }
 
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        input.getUsername(),
+                        user .getUsername(),
                         input.getPassword()
                 )
         );
@@ -95,6 +101,7 @@ public class AuthService {
         return user;
     }
 
+    @Transactional
     public ResponseEntity<String> verifyUser(VerifyUserDto input) {
         Optional<User> optionalUser = userRepository.findByEmail(input.getEmail());
 
@@ -105,20 +112,28 @@ public class AuthService {
         User user = optionalUser.get();
 
         if (user.isVerified()) {
-            throw new RuntimeException("Account is already verified");
+            throw new BadRequestExceptionErr("Account is already verified");
         }
 
-        if (isUserVerificationCodeValid(user, input.getVerificationCode())) {
+        if (!isUserVerificationCodeValid(user, input.getVerificationCode())) {
             throw new BadRequestExceptionErr("Invalid verification code");
         } 
 
         user.setVerified(true);
         user.setVerificationCode(null);
         user.setVerificationCodeExpiresAt(null);
-        userRepository.save(user);
-        return ResponseEntity.ok("Account verified successfully");
+
+        try {
+            userRepository.save(user);
+            return ResponseEntity.ok("Account verified successfully.");
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictExceptionErr("User already exists or violates database constraints", e);
+        } catch (Exception e) {
+            throw new InternalServerExceptionErr("Unexpected error saving user", e);
+        }
        
     }
+    
 
     private void sendVerificationEmail(String email, String plainCode) {
         String subject = "Account Verification";
@@ -141,21 +156,25 @@ public class AuthService {
             emailService.sendVerificationEmail(email, subject, htmlMessage);
         } catch (MessagingException e) {
             e.printStackTrace();
-            throw new RuntimeException("Failed to send verification email: " + e.getMessage(), e);
+            throw new InternalServerExceptionErr("Failed to send verification email: " + e.getMessage(), e);
         }
     }
 
     public void resendVerificationCode(String email) {
         Optional<User> optionalUser = userRepository.findByEmail(email);
 
+        if (email == null || email.isBlank()) {
+            throw new BadRequestExceptionErr("Email cannot be null or blank");
+        }
+
         if(!optionalUser.isPresent()) {
-            throw new RuntimeException("User not found with email: " + email);
+            throw new ResourceNotFoundExceptionErr("User not found.");
         }
 
         User user = optionalUser.get();
         
-        if (user.isEnabled()) {
-            throw new RuntimeException("Account is already verified");
+        if (user.isVerified()) {
+            throw new BadRequestExceptionErr("Account is already verified");
         }
 
         String code = generateVerificationCode();
@@ -178,24 +197,39 @@ public class AuthService {
 
     private boolean isUserVerificationCodeValid(User user, String inputCode) {
         if (user.getVerificationCode() == null || user.getVerificationCode().isBlank()) {
-            throw new RuntimeException("User verification code is not set");
+            throw new BadRequestExceptionErr("User verification code is not set");
         }
         if (user.getVerificationCodeExpiresAt() == null || user.getVerificationCodeExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Verification code has expired");
+            throw new BadRequestExceptionErr("Verification code has expired");
         }   
+
+        String hashedInputCode = hashCode(inputCode);
 
         System.out.println("User verification code: " + user.getVerificationCode());
         System.out.println("Input verification code: " + inputCode);
-        return true;
+        return user.getVerificationCode().equals(hashedInputCode);
+
     }
 
     private String hashCode(String code) {
-    try {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
-        return Base64.getEncoder().encodeToString(hash);
-    } catch (NoSuchAlgorithmException e) {
-        throw new RuntimeException("Error hashing verification code", e);
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(code.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error hashing verification code", e);
+        }
+
     }
-}
+
+    private Optional<User> findUserByUsernameOrEmail(String username, String email) {
+        if (email != null && !email.isBlank()) {
+            return userRepository.findByEmail(email);
+        }
+        if (username != null && !username.isBlank()) {
+            return userRepository.findByUsername(username);
+        }
+        return Optional.empty();
+    }
+
 }

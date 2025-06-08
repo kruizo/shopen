@@ -17,8 +17,6 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.bkr.shopen.services.auth.JwtService;
 
-import io.jsonwebtoken.Claims;
-
 import java.io.IOException;
 
 @Component

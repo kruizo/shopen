@@ -1,4 +1,18 @@
 services:
+  shopendb:
+    container_name: shopendb
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${SPRING_DATASOURCE_DB_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_DB_PASSWORD}
+      POSTGRES_DB: ${SPRING_DATASOURCE_DB_NAME}
+      PGDATA: /data/postgres
+    ports:
+      - "${SPRING_DATASOURCE_DB_PORT}:5432"
+    networks:
+      - postgres
+    restart: unless-stopped
+
   shopenapi:
     container_name: shopenapi
     build: .
@@ -21,22 +35,10 @@ services:
     depends_on:
       - shopendb
     networks:
-      - shopen_network
+      - postgres
     restart: unless-stopped
 
-  shopendb:
-    container_name: shopendb
-    image: postgres:16
-    environment:
-      POSTGRES_USER: ${SPRING_DATASOURCE_DB_USERNAME}
-      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_DB_PASSWORD}
-      POSTGRES_DB: ${SPRING_DATASOURCE_DB_NAME}
-      PGDATA: /data/postgres
-    ports:
-      - "${SPRING_DATASOURCE_DB_PORT}:5432"
-    networks:
-      - shopen_network
-    restart: unless-stopped
+
 
 networks:
   postgres:

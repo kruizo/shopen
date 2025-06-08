@@ -22,7 +22,7 @@ services:
     depends_on:
       - shopendb
     networks:
-      - shopen_network
+      - postgres
     restart: unless-stopped
 
   shopendb:
@@ -38,7 +38,7 @@ services:
     ports:
       - "${SPRING_DATASOURCE_DB_PORT}:5432"
     networks:
-      - shopen_network
+      - postgres
     restart: unless-stopped
 
 networks:

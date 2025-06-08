@@ -18,7 +18,6 @@ services:
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${ENV_MAIL_AUTH}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${ENV_MAIL_STARTTLS}
       SPRING_MAIL_PROPERTIES_MAIL_DEBUG: ${ENV_MAIL_DEBUG}
-      SPRING_PROFILES_ACTIVE: prod
       PORT: ${PORT}
     depends_on:
       - shopendb
@@ -43,7 +42,7 @@ services:
     restart: unless-stopped
 
 networks:
-  shopen_network:
+  postgres:
     driver: bridge
 
 volumes:

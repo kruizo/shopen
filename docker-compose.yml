@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
 networks:
-  shopen_network:
+  postgres:
     driver: bridge
 
 volumes:

@@ -46,7 +46,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/home").permitAll()
                 .requestMatchers("/users" ,"/users/**").permitAll()
-                .requestMatchers("/user","/user/**").hasRole("USER")
+                .requestMatchers("/user", "/user/**").hasAnyRole("BUYER", "ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
           )
@@ -60,7 +60,7 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("https://app-backend.com", "http://localhost:8080")); //TODO: update backend url
+        configuration.setAllowedOrigins(List.of("https://app-backend.com", "http://localhost:8080")); 
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 

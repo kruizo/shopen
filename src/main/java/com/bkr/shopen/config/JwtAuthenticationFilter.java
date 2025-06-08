@@ -17,6 +17,8 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import com.bkr.shopen.services.auth.JwtService;
 
+import io.jsonwebtoken.Claims;
+
 import java.io.IOException;
 
 @Component
@@ -44,17 +46,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
 
-        System.out.println("Auth header: " + request.getHeader("Authorization"));
+        System.out.println("Authorization Header: " + authHeader);
 
-        
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
+        
         try {
             final String jwt = authHeader.substring(7);
             final String userEmail = jwtService.extractUsername(jwt);
+
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

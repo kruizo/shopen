@@ -4,12 +4,22 @@ services:
     build: .
     ports:
       - "${PORT}:8080"
+    env_file:
+      - .env.development
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_DB_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_DB_PASSWORD}
+      SPRING_MAIL_USERNAME: ${ENV_MAIL_EMAIL}
+      SPRING_MAIL_PASSWORD: ${ENV_MAIL_PASSWORD}
+      SPRING_MAIL_HOST: ${ENV_MAIL_HOST}
+      SPRING_MAIL_PORT: ${ENV_MAIL_PORT}
+      SPRING_MAIL_PROTOCOL: ${ENV_MAIL_PROTOCOL}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${ENV_MAIL_AUTH}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${ENV_MAIL_STARTTLS}
+      SPRING_MAIL_PROPERTIES_MAIL_DEBUG: ${ENV_MAIL_DEBUG}
+      SPRING_PROFILES_ACTIVE: prod
       PORT: ${PORT}
-
     depends_on:
       - shopendb
     networks:
@@ -18,7 +28,9 @@ services:
 
   shopendb:
     container_name: shopendb
-    image: postgres:latest
+    image: postgres:16
+    env_file:
+      - .env.development
     environment:
       POSTGRES_USER: ${SPRING_DATASOURCE_DB_USERNAME}
       POSTGRES_PASSWORD: ${SPRING_DATASOURCE_DB_PASSWORD}

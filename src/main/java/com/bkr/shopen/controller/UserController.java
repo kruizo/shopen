@@ -1,22 +1,23 @@
 package com.bkr.shopen.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.bkr.shopen.dto.UserDto;
-import com.bkr.shopen.mapper.UserMapper;
-import com.bkr.shopen.model.User;
 import com.bkr.shopen.model.UserRole;
 import com.bkr.shopen.services.UserService;
 
-import jakarta.persistence.Enumerated;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
 @RequestMapping("/users")
 @RestController
+@Tag(name = "User Management", description = "APIs for managing users")
 public class UserController {
 
     private final UserService userService;
@@ -33,6 +34,8 @@ public class UserController {
     }
 
     @GetMapping
+    @Operation(summary = "Get all users", description = "Retrieve a list of all registered users")
+    // @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getAllUsers() {
         List<UserDto> users = userService.getAllUsers();
 
@@ -51,6 +54,7 @@ public class UserController {
         return ResponseEntity.ok(currentUser);
     }
 
+    // @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{userId}")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long userId) {
         UserDto user = userService.getUserById(userId);
